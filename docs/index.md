@@ -10,10 +10,6 @@
 
 # 其他
 
-## 1. 参考资料及实验包下载
-
-&emsp;&emsp;<a href="https://gitee.com/hitsz-cslab/gitee-page-demo/tree/master/stupkt" target="_blank">点击下载参考资料和实验包</a>
-
-## 2. 作业提交方式
+## 1. 作业提交方式
 
 &emsp;&emsp;提交作业的方法和流程见页面左侧《[作业提交说明](homewk.md)》。
