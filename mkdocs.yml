@@ -4,7 +4,7 @@ site_name: 计算机体系结构实验（2023） | 哈工大（深圳）
 # 版权信息————记得更新年份
 copyright: 'Copyright &copy; 2023 - 2024 哈尔滨工业大学（深圳）'
 # 仓库名称(非必须)————可自定义
-repo_name: 'GiteePageDemoRepo'
+repo_name: 'CA_Handbook'
 # 仓库URL(非必须)
 repo_url: 'https://gitee.com/hitsz-cslab/gitee-page-demo'
 

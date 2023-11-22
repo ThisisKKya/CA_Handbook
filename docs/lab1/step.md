@@ -477,5 +477,5 @@ python tools/plain_train_net.py --eval-only --ckpt tools/logs/model_0000200.pth 
 
     ```
 
-## 步骤四：后续发布
+## 步骤四：后续发布(第三、四次实验)
 
