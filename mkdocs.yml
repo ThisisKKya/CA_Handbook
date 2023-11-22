@@ -1,0 +1,78 @@
+# 所有网页的统一标题
+# 标题建议统一格式，如：XXXXXX实验（2023春季） | 哈工大（深圳）
+site_name: 计算机体系结构实验（2023） | 哈工大（深圳）
+# 版权信息————记得更新年份
+copyright: 'Copyright &copy; 2023 - 2024 哈尔滨工业大学（深圳）'
+# 仓库名称(非必须)————可自定义
+repo_name: 'GiteePageDemoRepo'
+# 仓库URL(非必须)
+repo_url: 'https://gitee.com/hitsz-cslab/gitee-page-demo'
+
+# 所使用的Markdown扩展————一般不需要改动
+markdown_extensions:
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  # 支持emoji表情
+  - pymdownx.emoji:
+      emoji_index: !!python/name:pymdownx.emoji.twemoji
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tabbed
+  - pymdownx.tilde
+  - admonition
+  - mdx_math:
+      enable_dollar_delimiter: True
+
+extra_javascript:
+  - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML
+  # - mathjaxhelper.js
+
+# GiteePage主题————使用统一模板：material
+theme:
+  language: 'zh'
+  name: material
+  custom_dir: overrides
+  features:
+    - navigation.tabs
+  icon:
+    # 网页标题左侧的图标————可更换成其他fontawesome图标，详见https://fontawesome.com/
+    logo: fontawesome/solid/microchip
+    repo: fontawesome/brands/git-alt
+    # favicon: fontawesome/solid/microchip
+  palette:
+    - scheme: 'default'     # 白天模式
+      primary: 'blue'       # 网页底色
+      accent: 'red'         # 交互元素颜色
+      toggle:
+        icon: material/weather-sunny
+        name: 切换到夜晚模式
+    - scheme: 'slate'       # 夜晚模式
+      primary: 'blue'       # 网页底色
+      accent: 'red'         # 交互元素颜色
+      toggle:
+        icon: material/weather-night
+        name: 切换到白天模式
+
+# 导航设置
+# （1）最多三级缩进，每一级缩进对应一个级别层次
+# （2）可使用中文或其他语言的字符，但文字与markdown文件之间的冒号必须是英文冒号
+nav:
+  - 首页:
+    - 实验须知: index.md
+    - 作业提交说明: homewk.md
+  - 实验1：AI系统实践专题:
+    - 实验概述: lab1/overview.md
+    - 实验原理: lab1/theory.md
+    - 实验步骤: lab1/step.md
+    - 验收与提交: lab1/submit.md
+
+  
