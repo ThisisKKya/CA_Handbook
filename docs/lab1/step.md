@@ -477,5 +477,279 @@ python tools/plain_train_net.py --eval-only --ckpt tools/logs/model_0000200.pth 
 
     ```
 
-## 步骤四：后续发布(第三、四次实验)
+## 步骤四：运行CUDA矩阵乘法样例（第三次实验课）
 
+### 1. 下载矩阵乘法样例
+```
+wget 10.249.45.93:8800/matrix_mul.tar
+#解压
+tar -xvf matrix_mul.tar
+cd matrix_mul
+
+```
+### 2. 编译并运行矩阵乘法样例
+cuda采用nvcc命令编译.cu文件
+```
+nvcc -o output_file input_file.cu
+-o：指定输出文件名；
+input_file.cu：指定输入文件名；
+#编译matrix_mul.cu
+(base) username@n1:~/matrix_mul  nvcc -o matrix_mul matrix_mul.cu
+
+```
+运行编译好的程序(m=n=k=2000)
+```
+./matrix_mul
+```
+结果如图所示：可以看到对于两个1000*1000的方阵进行矩阵运算后的FLOPS（或Flop/s）和运行时间。
+<center><img src="../assets/运行时间.png" width = 700></center>
+
+### 3. 修改代码
+
+    源文件中实现的是用CPU计算实现的矩阵乘法，我们通过以下几步实现在GPU上完成矩阵乘法运算
+
+    (1).	定义块block大小
+    ```
+    using namespace std;
+    const int TILE_WIDTH=16;
+    ```
+    (2).	声明存放在GPU上的数组
+    ```
+    float *h_M, *h_N;
+    float *h_P;   
+    float *d_M, *d_N, *d_P;
+
+    ```
+    (3).	分配空间
+    ```
+        // Allocate host memory
+        h_M = (float *)malloc(sizeM);
+        h_N = (float *)malloc(sizeN);
+        h_P = (float *)malloc(sizeP);
+        float *reference = (float *)malloc(sizeP);
+
+        // 2.Allocate device memory
+        cudaMalloc(&d_M, sizeM);
+        cudaMalloc(&d_N, sizeN);
+        cudaMalloc(&d_P, sizeP);
+
+    ```
+    (4).	将内存中的原数组元素值复制到GPU中
+    ```
+    for (int i = 0; i < n * k; ++i)
+        {
+            if (i % 2 == 0)
+                h_N[i] = 0.5;
+            else
+                h_N[i] = 1.0;
+    }
+    cudaMemcpy(d_M, h_M, sizeM, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_N, h_N, sizeN, cudaMemcpyHostToDevice);
+
+    ```
+    (5).	定义grid&block
+    ```
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start, 0);
+        dim3 grid((int)ceil(k*1.0 / TILE_WIDTH), (int)ceil(m*1.0/ TILE_WIDTH));
+        dim3 block(TILE_WIDTH, TILE_WIDTH);
+
+    ```
+    (6).	定义MatrixMulKernel函数
+    ```
+    __global__ void MatrixMulKernel(float* d_M, float* d_N, float* d_P, int width)
+    {
+    // Calculate the row index of the P element and M
+    int row = blockIdx.y*blockDim.y + threadIdx.y;
+    // Calculate the column index of the P element and N
+    int col = blockIdx.x*blockDim.x + threadIdx.x;
+
+    if ( (row < width) && (col < width) ) {
+        float pValue = 0.0;
+        // each thread computes one element of the block sub-matrix
+        for (int k = 0; k < width; ++k)
+        pValue += d_M[row*width+k] * d_N[k*width+col];
+        d_P[row*width+col] = pValue;
+    }
+    }
+    int main()...
+
+    ```
+    (7).	调用MatrixMulKernel函数
+    ```
+    for (int j = 0; j < nIter; j++)
+        {
+            MatrixMulKernel<<<grid, block>>>(d_M, d_N, d_P, m);
+        }
+
+    ```
+    (8).	将结果copy到内存并释放GPU分配的空间
+    ```
+    printf("Performance= %.2f GFlop/s, Time= %.3f msec, Size= %.0f Ops\n",gigaFlops,msecPerMatrixMul,flopsPerMatrixMul);    
+    //Copy data from GPU to CPU
+        cudaMemcpy(h_P, d_P, sizeP, cudaMemcpyDeviceToHost);
+        
+        cudaFree(d_P);
+        cudaFree(d_M);
+        cudaFree(d_N);
+
+        free(h_P);
+        free(h_M);
+        free(h_N);
+
+    ```
+    (9).	重新编译运行，观察结果
+    ```
+    (base) username@n1:~/matrix_mul  nvcc -o matrix_mul matrix_mul.cu
+    ./matrix_mul
+    ```
+
+### 4. 使用Shared Memory
+
+    为进一步加快矩阵乘法运算速度，我们可在已经实现GPU计算的基础上采用shared_memory方式实现矩阵乘法。
+
+    (1).	添加函数 MatrixMulSharedMemKernel
+
+
+    ```
+    const int BLOCK_SIZE = TILE_WIDTH;
+    __global__ void MatrixMulSharedMemKernel(float *A,
+                                            float *B, float *C, int wA,
+                                            int wB)
+    {
+        // Block index
+        int bx = blockIdx.x;
+        int by = blockIdx.y;
+
+        // Thread index
+        int tx = threadIdx.x;
+        int ty = threadIdx.y;
+
+        // Index of the first sub-matrix of A processed by the block
+        int aBegin = wA * BLOCK_SIZE * by;
+
+        // Index of the last sub-matrix of A processed by the block
+        int aEnd = aBegin + wA - 1;
+
+        // Step size used to iterate through the sub-matrices of A
+        int aStep = BLOCK_SIZE;
+
+        // Index of the first sub-matrix of B processed by the block
+        int bBegin = BLOCK_SIZE * bx;
+
+        // Step size used to iterate through the sub-matrices of B
+        int bStep = BLOCK_SIZE * wB;
+
+        // Csub is used to store the element of the block sub-matrix
+        // that is computed by the thread
+        float Csub = 0;
+
+        // Loop over all the sub-matrices of A and B
+        // required to compute the block sub-matrix
+        for (int a = aBegin, b = bBegin;
+            a <= aEnd;
+            a += aStep, b += bStep)
+        {
+            // Declaration of the shared memory array As used to
+            // store the sub-matrix of A
+            __shared__ float As[BLOCK_SIZE][BLOCK_SIZE];
+
+            // Declaration of the shared memory array Bs used to
+            // store the sub-matrix of B
+            __shared__ float Bs[BLOCK_SIZE][BLOCK_SIZE];
+
+            // Load the matrices from device memory
+            // to shared memory; each thread loads
+            // one element of each matrix
+            As[ty][tx] = A[a + wA * ty + tx];
+            Bs[ty][tx] = B[b + wB * ty + tx];
+
+            // Synchronize to make sure the matrices are loaded
+            __syncthreads();
+
+            // Multiply the two matrices together;
+            // each thread computes one element
+            // of the block sub-matrix
+            #pragma unroll
+            for (int k = 0; k < BLOCK_SIZE; ++k)
+            {
+                Csub += As[ty][k] * Bs[k][tx];
+            }
+            // Synchronize to make sure that the preceding
+            // computation is done before loading two new
+            // sub-matrices of A and B in the next iteration
+            __syncthreads();
+        }
+        // Write the block sub-matrix to device memory;
+        // each thread writes one element
+        int c = wB * BLOCK_SIZE * by + BLOCK_SIZE * bx;
+        C[c + wB * ty + tx] = Csub;
+    }
+    ```
+
+    (2).	调用该函数
+    ```
+    for (int j = 0; j < nIter; j++)
+        {
+            MatrixMulSharedMemKernel<<<grid, block>>>(d_M, d_N, d_P, m, n);    
+    }
+    ```
+    (3).	重新编译并执行，查看结果
+    ```
+    (base) username@n1:~/matrix_mul   nvcc -o matrix_mul matrix_mul.cu
+    ./matrix_mul
+
+    ```
+
+
+### 5. 使用cublasSgemm计算矩阵乘法
+
+cublasSgemm是CUDA的cublas库的矩阵相乘函数。其参数可含义可参考cuBLAS (nvidia.com)。CublasSgemm实现的公式如图所示：
+<center><img src="../assets/cublas.png" width = 300></center>
+    (1).	定义调用函数需要的参数
+    ```
+    int nIter = 5;
+    cublasHandle_t handle;
+    cublasCreate(&handle);
+    const float alpha = 1.0f;
+    const float beta = 0.0f;
+    ```
+    (2).	调用该函数
+    ```
+     for (int j = 0; j < nIter; j++)
+    {
+        cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha, d_N, n, d_M, k, &beta, d_P, n);
+    }
+
+    ```
+    (3).	释放handle
+    ```
+    cudaFree(d_P);
+    cudaFree(d_M);
+    cudaFree(d_N);    
+    cublasDestroy(handle);
+    return 0;
+
+    ```
+    (4).	重新编译并运行，查看实验结果
+    ```
+    (base) username@n1:~/matrix_mul  nvcc -L/usr/local/cuda/lib64 -lcublas ./matrix_mul.cu -o matrix_mul
+
+    ./matrix_mul
+
+    ```
+
+### 6. 观察不同矩阵大小下CUDA运算结果和性能
+
+修改矩阵的维度（如下图m, n, k的值，可取的维度范围为：[100, 20000]）来观察不同算法的执行性能。
+    <center><img src="../assets/106.png" width = 600></center>
+    重新编译运行，观察结果
+    ```
+    (base) username@n1:~/matrix_mul  nvcc -L/usr/local/cuda/lib64 -lcublas ./matrix_mul.cu -o matrix_mul
+
+    ./matrix_mul
+
+    ```
+## 步骤五：运行CUDA矩阵乘法与SMOKE集成（待发布）
