@@ -1,6 +1,8 @@
 # 实验步骤
 
-# 任务一：部署感知模型
+## 任务一
+
+## 部署感知模型
 ### step1: 进入apollo容器
 在 Ubuntu 系统中打开命令行工具，进入~/apollo 目录，执行启动 docker 环境指令。
 ```bash
@@ -19,6 +21,7 @@ sudo bash ./docker/scripts/dev_into.sh
 <center><img src="../assets/容器外.png" width = 600></center>
 容器内：
 <center><img src="../assets/容器内.png" width = 600></center>
+
 ### step2: 安装模型
 通过以下命令把训练好的模型部署到Apollo，其中`SMOKE_paddle.zip`是训练好的模型打包文件。执行完成命令之后，提示安装成功，则表示模型安装成功。
 ```bash
